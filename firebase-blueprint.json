@@ -1,0 +1,172 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "username": { "type": "string", "description": "Unique username for search" },
+        "displayName": { "type": "string", "description": "Display name" },
+        "photoURL": { "type": "string", "description": "Profile picture URL" },
+        "bio": { "type": "string", "description": "User biography" },
+        "theme": { "type": "string", "enum": ["purple", "orange", "red", "gray", "black", "white"], "default": "white" },
+        "followersCount": { "type": "number", "description": "Number of followers" },
+        "followingCount": { "type": "number", "description": "Number of following" },
+        "likesCount": { "type": "number", "description": "Total likes received" },
+        "isDeveloper": { "type": "boolean", "description": "Developer status" },
+        "isBanned": { "type": "boolean", "description": "Ban status" },
+        "banExpiresAt": { "type": "string", "format": "date-time" },
+        "hasBadge": { "type": "boolean", "description": "Special badge" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "username", "displayName"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "A social media post (image, video, or text)",
+      "type": "object",
+      "properties": {
+        "authorUid": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorDisplayName": { "type": "string" },
+        "authorPhotoURL": { "type": "string" },
+        "content": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "video"] },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorUid", "createdAt"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "A 24h disappearing story",
+      "type": "object",
+      "properties": {
+        "authorUid": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "video"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorUid", "mediaUrl", "createdAt", "expiresAt"]
+    },
+    "ContactRequest": {
+      "title": "ContactRequest",
+      "description": "Request to add someone to contacts",
+      "type": "object",
+      "properties": {
+        "fromUid": { "type": "string" },
+        "fromUsername": { "type": "string" },
+        "toUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromUid", "toUid", "status", "createdAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "A comment on a post",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "authorUsername": { "type": "string" },
+        "authorDisplayName": { "type": "string" },
+        "content": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "video", "audio"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "authorUid", "createdAt"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A chat session between users",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participants"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message in a chat",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "content": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["image", "video", "audio"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "senderUid", "createdAt"]
+    },
+    "Call": {
+      "title": "Call",
+      "description": "A voice or video call signaling document",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "fromUid": { "type": "string" },
+        "toUid": { "type": "string" },
+        "type": { "type": "string", "enum": ["audio", "video"] },
+        "status": { "type": "string", "enum": ["ringing", "accepted", "rejected", "ended"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "fromUid", "toUid", "type", "status", "createdAt"]
+    },
+    "Community": {
+      "title": "Community",
+      "description": "A group or channel",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["group", "channel"] },
+        "ownerUid": { "type": "string" },
+        "admins": { "type": "array", "items": { "type": "string" } },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type", "ownerUid", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification",
+      "type": "object",
+      "properties": {
+        "toUid": { "type": "string" },
+        "fromUid": { "type": "string" },
+        "fromName": { "type": "string" },
+        "type": { "type": "string", "enum": ["follow", "message", "group_message", "call"] },
+        "content": { "type": "string" },
+        "link": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["toUid", "type", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/notifications/{notificationId}": { "schema": "Notification", "description": "User notifications" },
+    "/posts/{postId}": { "schema": "Post", "description": "Global posts feed" },
+    "/posts/{postId}/comments/{commentId}": { "schema": "Comment", "description": "Comments on a specific post" },
+    "/chats/{chatId}": { "schema": "Chat", "description": "Chat metadata" },
+    "/chats/{chatId}/messages/{messageId}": { "schema": "Message", "description": "Messages within a chat" },
+    "/calls/{callId}": { "schema": "Call", "description": "Call signaling" },
+    "/communities/{communityId}": { "schema": "Community", "description": "Groups and Channels" },
+    "/communities/{communityId}/messages/{messageId}": { "schema": "Message", "description": "Messages in community" },
+    "/followers/{targetUid}/userFollowers/{followerUid}": { "schema": "object", "description": "Follower relationship" },
+    "/following/{followerUid}/userFollowing/{targetUid}": { "schema": "object", "description": "Following relationship" },
+    "/postLikes/{postId}/userLikes/{uid}": { "schema": "object", "description": "Post likes tracking" }
+  }
+}

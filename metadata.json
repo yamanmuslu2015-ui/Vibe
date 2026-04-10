@@ -1,0 +1,8 @@
+{
+  "name": "SnapVibe",
+  "description": "A vibrant social network for sharing moments, chatting with friends, and following your favorite creators.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

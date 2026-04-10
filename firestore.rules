@@ -1,0 +1,189 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - username: string (required) - Unique username
+    //   - displayName: string (required) - Display name
+    //   - photoURL: string (optional)
+    //   - bio: string (optional)
+    //   - followersCount: number
+    //   - followingCount: number
+    //   - likesCount: number
+    //   - createdAt: timestamp
+    //
+    // Collection: posts
+    // Document ID: {postId}
+    // Fields:
+    //   - authorUid: string (required)
+    //   - authorUsername: string
+    //   - authorDisplayName: string
+    //   - content: string (required)
+    //   - imageUrl: string (optional)
+    //   - likesCount: number
+    //   - commentsCount: number
+    //   - createdAt: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'username', 'displayName']) &&
+             data.uid is string && data.uid == request.auth.uid &&
+             data.username is string && data.username.size() >= 3 && data.username.size() <= 30 &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 50 &&
+             (!('theme' in data) || data.theme in ['purple', 'orange', 'red', 'gray', 'black', 'white']);
+    }
+
+    function isValidPost(data) {
+      return data.keys().hasAll(['authorUid', 'createdAt']) &&
+             data.authorUid == request.auth.uid &&
+             (!('content' in data) || (data.content is string && data.content.size() >= 0 && data.content.size() <= 2000)) &&
+             (!('mediaType' in data) || data.mediaType == null || data.mediaType in ['image', 'video']);
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['postId', 'authorUid', 'createdAt']) &&
+             data.authorUid == request.auth.uid &&
+             (!('content' in data) || (data.content is string && data.content.size() <= 500)) &&
+             (!('mediaType' in data) || data.mediaType in ['image', 'video', 'audio']);
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          ((request.auth.token.email == "yamanmuslu2015@gmail.com" || request.auth.token.email == "muslusvetlana1984@gmail.com") && request.auth.token.email_verified == true));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
+                    request.resource.data.uid == resource.data.uid) ||
+                    (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['isBanned', 'banExpiresAt', 'hasBadge', 'isDeveloper']));
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.toUid == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.toUid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
+
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidPost(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (isOwner(resource.data.authorUid) && isValidPost(request.resource.data)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']))
+      );
+      allow delete: if isOwner(resource.data.authorUid) || isAdmin();
+
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && isValidComment(request.resource.data);
+        allow delete: if isOwner(resource.data.authorUid) || isOwner(get(/databases/$(database)/documents/posts/$(postId)).data.authorUid) || isAdmin();
+      }
+    }
+
+    match /stories/{storyId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorUid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /contactRequests/{requestId} {
+      allow read: if isAuthenticated() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.fromUid == request.auth.uid;
+      allow update: if isAuthenticated() && request.resource.data.toUid == request.auth.uid && 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isAuthenticated() && request.auth.uid == request.resource.data.senderUid &&
+                      request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow update: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow delete: if isAuthenticated() && request.auth.uid == resource.data.senderUid;
+      }
+
+      match /typing/{userId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow write: if isOwner(userId) && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
+    }
+
+    match /calls/{callId} {
+      allow read: if isAuthenticated() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.fromUid == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+    }
+
+    match /communities/{communityId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        request.auth.uid == resource.data.ownerUid || 
+        request.auth.uid in resource.data.admins ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) && 
+         (request.resource.data.members.size() > resource.data.members.size() || request.auth.uid in resource.data.members))
+      );
+      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated() && (
+          (get(/databases/$(database)/documents/communities/$(communityId)).data.type == 'group' && 
+           request.auth.uid in get(/databases/$(database)/documents/communities/$(communityId)).data.members) ||
+          (get(/databases/$(database)/documents/communities/$(communityId)).data.type == 'channel' && 
+           (request.auth.uid == get(/databases/$(database)/documents/communities/$(communityId)).data.ownerUid || 
+            request.auth.uid in get(/databases/$(database)/documents/communities/$(communityId)).data.admins))
+        );
+      }
+
+      match /typing/{userId} {
+        allow read: if isAuthenticated();
+        allow write: if isOwner(userId);
+      }
+    }
+
+    match /followers/{targetUid}/userFollowers/{followerUid} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isOwner(followerUid);
+    }
+
+    match /following/{followerUid}/userFollowing/{targetUid} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isOwner(followerUid);
+    }
+
+    match /postLikes/{postId}/userLikes/{uid} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isOwner(uid);
+    }
+  }
+}
